@@ -23,7 +23,7 @@ export interface EventType {
 export interface PhotoType {
   id: number;
   event_id: number;
-  user_id?: number;
+  user_id: number | null;
   title: string;
   uploaded_by: string;
   story: string;
@@ -35,6 +35,7 @@ export interface PhotoType {
   donation_amount: number;
   is_removed: boolean;
   event_title?: string;
+  image_data?: string | null;
 }
 
 export interface DashboardData {

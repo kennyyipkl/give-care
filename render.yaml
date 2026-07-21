@@ -1,3 +1,10 @@
+databases:
+  - name: givecare-db
+    databaseName: givecare
+    user: givecare_user
+    plan: free
+    region: singapore
+
 services:
   - type: web
     name: givecare-frontend
@@ -23,4 +30,8 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///db/pyworkflow.db
+        fromDatabase:
+          name: givecare-db
+          property: connectionString
+      - key: RENDER
+        value: "true"

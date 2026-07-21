@@ -63,6 +63,16 @@ export const photoApi = {
     api.post("/photos", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  /** Upload a photo using base64 (works in production where there's no filesystem). */
+  createBase64: (data: { event_id: number; title: string; uploaded_by: string; story: string; image_data: string }) => {
+    const formData = new FormData();
+    formData.append("event_id", String(data.event_id));
+    formData.append("title", data.title);
+    formData.append("uploaded_by", data.uploaded_by);
+    formData.append("story", data.story);
+    formData.append("image_data", data.image_data);
+    return photoApi.create(formData);
+  },
   generateStory: (data: StoryGenerateData) => api.post("/photos/generate-story", data),
   share: (id: number) => api.post(`/photos/${id}/share`),
   donate: (id: number, data: DonateData) => api.post(`/photos/${id}/donate`, data),

@@ -1,12 +1,14 @@
 import os
 import uuid
 import shutil
+import base64
+import imghdr
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db
+from database import get_db, IS_RENDER
 from models import Event, Photo, User
 from schemas import (
     PhotoCreate,
@@ -22,7 +24,8 @@ from routers.auth import get_admin_user, get_optional_user
 router = APIRouter(prefix="/photos", tags=["photos"])
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+if not IS_RENDER:
+    UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
@@ -125,33 +128,72 @@ async def create_photo(
     title: str = Form(...),
     uploaded_by: str = Form(...),
     story: str = Form(...),
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
+    image_data: str = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Create a photo. Accepts either:
+    - `file` (multipart upload) — for local dev
+    - `image_data` (base64 string) — for production / any environment
+    """
     # Verify event exists
     event_result = await db.execute(select(Event).where(Event.id == event_id))
     event = event_result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # Validate file extension
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    photo_args = {
+        "event_id": event_id,
+        "title": title,
+        "uploaded_by": uploaded_by,
+        "story": story,
+    }
 
-    # Save file
-    unique_name = f"{uuid.uuid4().hex}{ext}"
-    file_path = UPLOAD_DIR / unique_name
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    if image_data:
+        # --- Base64 path (production-friendly) ---
+        # Strip data URL prefix if present
+        raw = image_data
+        if "," in raw:
+            raw = raw.split(",")[1]
+        # Decode to validate it's real image data
+        try:
+            img_bytes = base64.b64decode(raw)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid base64 image data")
 
-    photo = Photo(
-        event_id=event_id,
-        title=title,
-        uploaded_by=uploaded_by,
-        story=story,
-        filename=unique_name,
-    )
+        # Detect extension from bytes
+        img_type = imghdr.what(None, h=img_bytes)
+        if img_type not in ("jpeg", "png", "gif", "webp"):
+            raise HTTPException(status_code=400, detail=f"Invalid image type '{img_type}'. Allowed: jpeg, png, gif, webp")
+
+        ext = f".{img_type}" if img_type else ".jpg"
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        photo_args["filename"] = unique_name
+        photo_args["image_data"] = image_data
+
+        # Also save to disk for local dev fallback
+        if not IS_RENDER:
+            file_path = UPLOAD_DIR / unique_name
+            with open(file_path, "wb") as f:
+                f.write(img_bytes)
+
+    elif file:
+        # --- File upload path (local dev) ---
+        # Validate file extension
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = UPLOAD_DIR / unique_name
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        photo_args["filename"] = unique_name
+    else:
+        raise HTTPException(status_code=400, detail="Either 'file' or 'image_data' is required")
+
+    photo = Photo(**photo_args)
     db.add(photo)
     await db.commit()
     await db.refresh(photo)

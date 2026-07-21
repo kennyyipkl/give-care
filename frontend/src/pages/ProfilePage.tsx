@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { UserType, PhotoType } from "../types";
 import LoadingSkeleton from "../components/LoadingSkeleton";
+import { getImageSrc } from "../utils/imageSrc";
 
 interface ProfilePageProps {
   user: UserType;
@@ -79,7 +80,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
             <div key={photo.id} className="photo-card fade-in">
               <img
                 className="photo-card-image"
-                src={`/api/uploads/${photo.filename}`}
+                src={getImageSrc(photo.filename, photo.image_data)}
                 alt={photo.title}
               />
               <div className="photo-card-body">

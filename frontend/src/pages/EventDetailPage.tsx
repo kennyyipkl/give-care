@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { photoApi } from "../api";
 import { useToast } from "../context/ToastContext";
 import type { EventType, PhotoType } from "../types";
+import { getImageSrc } from "../utils/imageSrc";
 import DonationModal from "../components/DonationModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import LoadingSkeleton from "../components/LoadingSkeleton";
@@ -12,6 +13,16 @@ interface EventDetailPageProps {
   onNavigateToGallery?: () => void;
   isAdmin?: boolean;
   onAdminRemove?: (photoId: number) => void;
+}
+
+/** Convert a File to a base64 data URL string. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function EventDetailPage({
@@ -89,13 +100,15 @@ export default function EventDetailPage({
 
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("event_id", String(event.id));
-      fd.append("title", uploadTitle);
-      fd.append("uploaded_by", uploadByName);
-      fd.append("story", uploadStory);
-      fd.append("file", uploadFile);
-      await photoApi.create(fd);
+      // Convert file to base64 so it works everywhere (Render has no filesystem)
+      const base64 = await fileToBase64(uploadFile);
+      await photoApi.createBase64({
+        event_id: event.id,
+        title: uploadTitle,
+        uploaded_by: uploadByName,
+        story: uploadStory,
+        image_data: base64,
+      });
       addToast("Photo uploaded successfully! 📸", "success");
       setUploadTitle("");
       setUploadByName("");
@@ -323,7 +336,7 @@ export default function EventDetailPage({
             <div key={photo.id} className="photo-card fade-in">
               <img
                 className="photo-card-image"
-                src={`/api/uploads/${photo.filename}`}
+                src={getImageSrc(photo.filename, photo.image_data)}
                 alt={photo.title}
                 onClick={() => handlePhotoClick(photo)}
                 style={{ cursor: "pointer" }}
@@ -418,7 +431,7 @@ export default function EventDetailPage({
             </button>
             <img
               className="modal-image"
-              src={`/api/uploads/${selectedPhoto.filename}`}
+              src={getImageSrc(selectedPhoto.filename, selectedPhoto.image_data)}
               alt={selectedPhoto.title}
             />
             <div className="modal-body">

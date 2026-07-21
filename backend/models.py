@@ -1,7 +1,8 @@
 import datetime
+import base64
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, func, Float
 from sqlalchemy.orm import relationship
-from database import Base
+from database import Base, IS_RENDER
 
 
 class User(Base):
@@ -50,6 +51,17 @@ class Photo(Base):
     donate_count = Column(Integer, default=0, nullable=False)
     donation_amount = Column(Float, default=0.0, nullable=False)
     is_removed = Column(Boolean, default=False, nullable=False)
+    image_data = Column(Text, nullable=True)  # base64 encoded image (used in production, falls back to filename in dev)
 
     event = relationship("Event", back_populates="photos")
     user = relationship("User", back_populates="photos")
+
+    @property
+    def image_url(self) -> str:
+        """Return the appropriate image URL depending on environment."""
+        if self.image_data:
+            # Extract MIME type from the data or default to image/jpeg
+            if self.image_data.startswith("data:"):
+                return self.image_data
+            return f"data:image/jpeg;base64,{self.image_data}"
+        return f"/api/uploads/{self.filename}"

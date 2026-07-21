@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { photoApi } from "../api";
 import { useToast } from "../context/ToastContext";
 import type { PhotoType } from "../types";
+import { getImageSrc } from "../utils/imageSrc";
 import DonationModal from "../components/DonationModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import LoadingSkeleton from "../components/LoadingSkeleton";
@@ -192,7 +193,7 @@ export default function PhotoGalleryPage({
             <div key={photo.id} className="photo-card fade-in">
               <img
                 className="photo-card-image"
-                src={`/api/uploads/${photo.filename}`}
+                src={getImageSrc(photo.filename, photo.image_data)}
                 alt={photo.title}
                 onClick={() => handlePhotoClick(photo)}
                 style={{ cursor: "pointer" }}
@@ -292,7 +293,7 @@ export default function PhotoGalleryPage({
             </button>
             <img
               className="modal-image"
-              src={`/api/uploads/${selectedPhoto.filename}`}
+              src={getImageSrc(selectedPhoto.filename, selectedPhoto.image_data)}
               alt={selectedPhoto.title}
             />
             <div className="modal-body">

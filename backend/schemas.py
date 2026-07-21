@@ -109,6 +109,7 @@ class PhotoOut(BaseModel):
     donation_amount: float = 0.0
     is_removed: bool
     event_title: Optional[str] = None
+    image_data: Optional[str] = None  # base64 image data
 
     class Config:
         from_attributes = True

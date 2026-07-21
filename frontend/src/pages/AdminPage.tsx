@@ -3,6 +3,7 @@ import { eventApi, photoApi } from "../api";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import type { EventType, PhotoType, UserType } from "../types";
+import { getImageSrc } from "../utils/imageSrc";
 import ConfirmDialog from "../components/ConfirmDialog";
 import LoadingSkeleton from "../components/LoadingSkeleton";
 
@@ -339,7 +340,7 @@ export default function AdminPage() {
             photos.map((photo) => (
               <div key={photo.id} className="admin-event-item fade-in">
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem", flex: 1, minWidth: 0 }}>
-                  <img src={`/api/uploads/${photo.filename}`} alt={photo.title} style={{ width: 60, height: 60, objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0 }} />
+                  <img src={getImageSrc(photo.filename, photo.image_data)} alt={photo.title} style={{ width: 60, height: 60, objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0 }} />
                   <div className="admin-event-info">
                     <h4>{photo.title}</h4>
                     <p>By {photo.uploaded_by} · 👁️ {photo.view_count} · ❤️ {photo.donate_count}{photo.is_removed && <span style={{ color: "var(--color-danger)", marginLeft: "0.5rem" }}> [REMOVED]</span>}</p>
