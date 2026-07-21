@@ -2,7 +2,6 @@ import os
 import uuid
 import shutil
 import base64
-import imghdr
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy import select, func, or_
@@ -28,6 +27,21 @@ if not IS_PRODUCTION:
     UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+
+
+def _detect_image_ext(data):
+    """Detect image extension from magic bytes."""
+    if len(data) < 4:
+        return None
+    if data[:2] == b'\xff\xd8':
+        return '.jpg'
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        return '.png'
+    if data[:6] in (b'GIF87a', b'GIF89a'):
+        return '.gif'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return '.webp'
+    return None
 
 
 def generate_story(event_title: str, event_description: str, photo_title: str, donation_purpose: str) -> str:
@@ -152,35 +166,28 @@ async def create_photo(
 
     if image_data:
         # --- Base64 path (production-friendly) ---
-        # Strip data URL prefix if present
         raw = image_data
         if "," in raw:
             raw = raw.split(",")[1]
-        # Decode to validate it's real image data
         try:
             img_bytes = base64.b64decode(raw)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid base64 image data")
 
-        # Detect extension from bytes
-        img_type = imghdr.what(None, h=img_bytes)
-        if img_type not in ("jpeg", "png", "gif", "webp"):
-            raise HTTPException(status_code=400, detail=f"Invalid image type '{img_type}'. Allowed: jpeg, png, gif, webp")
+        ext = _detect_image_ext(img_bytes)
+        if ext is None:
+            raise HTTPException(status_code=400, detail="Invalid image type. Allowed: jpeg, png, gif, webp")
 
-        ext = f".{img_type}" if img_type else ".jpg"
         unique_name = f"{uuid.uuid4().hex}{ext}"
         photo_args["filename"] = unique_name
         photo_args["image_data"] = image_data
 
-        # Also save to disk for local dev fallback
         if not IS_PRODUCTION:
             file_path = UPLOAD_DIR / unique_name
             with open(file_path, "wb") as f:
                 f.write(img_bytes)
 
     elif file:
-        # --- File upload path (local dev) ---
-        # Validate file extension
         ext = Path(file.filename).suffix.lower()
         if ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")

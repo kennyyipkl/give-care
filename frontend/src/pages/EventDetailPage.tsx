@@ -100,15 +100,13 @@ export default function EventDetailPage({
 
     setUploading(true);
     try {
-      // Convert file to base64 so it works everywhere (Render has no filesystem)
-      const base64 = await fileToBase64(uploadFile);
-      await photoApi.createBase64({
-        event_id: event.id,
-        title: uploadTitle,
-        uploaded_by: uploadByName,
-        story: uploadStory,
-        image_data: base64,
-      });
+      const fd = new FormData();
+      fd.append("event_id", String(event.id));
+      fd.append("title", uploadTitle);
+      fd.append("uploaded_by", uploadByName);
+      fd.append("story", uploadStory);
+      fd.append("file", uploadFile);
+      await photoApi.create(fd);
       addToast("Photo uploaded successfully! 📸", "success");
       setUploadTitle("");
       setUploadByName("");
