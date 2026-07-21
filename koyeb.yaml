@@ -1,0 +1,29 @@
+name: give-care
+region: singapore
+
+services:
+  - name: givecare-backend
+    type: web
+    env: docker
+    dockerfile: Dockerfile
+    ports:
+      - port: 8000
+        protocol: http
+    health:
+      path: /health
+    routes:
+      - path: /api
+      - path: /auth
+      - path: /uploads
+      - path: /health
+
+  - name: givecare-frontend
+    type: web
+    env: static
+    build:
+      language: node
+      build_command: npm ci && npm run build
+      static_build_path: frontend/dist
+    routes:
+      - path: /
+        rewrite: /index.html

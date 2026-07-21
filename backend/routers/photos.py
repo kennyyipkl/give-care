@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Q
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db, IS_RENDER
+from database import get_db, IS_PRODUCTION
 from models import Event, Photo, User
 from schemas import (
     PhotoCreate,
@@ -24,7 +24,7 @@ from routers.auth import get_admin_user, get_optional_user
 router = APIRouter(prefix="/photos", tags=["photos"])
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
-if not IS_RENDER:
+if not IS_PRODUCTION:
     UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -173,7 +173,7 @@ async def create_photo(
         photo_args["image_data"] = image_data
 
         # Also save to disk for local dev fallback
-        if not IS_RENDER:
+        if not IS_PRODUCTION:
             file_path = UPLOAD_DIR / unique_name
             with open(file_path, "wb") as f:
                 f.write(img_bytes)

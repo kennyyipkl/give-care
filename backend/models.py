@@ -2,7 +2,7 @@ import datetime
 import base64
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, func, Float
 from sqlalchemy.orm import relationship
-from database import Base, IS_RENDER
+from database import Base, IS_PRODUCTION
 
 
 class User(Base):

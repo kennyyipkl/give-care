@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from database import init_db, AsyncSessionLocal, IS_RENDER
+from database import init_db, AsyncSessionLocal, IS_PRODUCTION
 from routers import auth, events, photos, dashboard, volunteers
 
 
@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 # Serve uploaded files (local dev only; production uses base64 stored in DB)
-if not IS_RENDER:
+if not IS_PRODUCTION:
     uploads_dir = Path(__file__).parent / "uploads"
     uploads_dir.mkdir(exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")

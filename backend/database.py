@@ -10,13 +10,12 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 DB_DIR = Path(__file__).parent / "db"
 DB_PATH = DB_DIR / "pyworkflow.db"
 
-# Detect production (Render) vs local dev
-IS_RENDER = os.environ.get("RENDER", "").lower() == "true"
+# Detect production environment
+IS_PRODUCTION = os.environ.get("IS_PRODUCTION", "").lower() == "true"
 RAW_DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-if IS_RENDER:
-    # Render PostgreSQL: asyncpg needs the URL to start with postgresql+asyncpg://
-    # Render gives postgresql://user:pass@host/db — we need to add +asyncpg
+if IS_PRODUCTION and RAW_DATABASE_URL:
+    # Production with PostgreSQL (e.g. Render)
     if RAW_DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = RAW_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
     elif RAW_DATABASE_URL.startswith("postgres://"):
@@ -24,6 +23,7 @@ if IS_RENDER:
     else:
         DATABASE_URL = f"postgresql+asyncpg://{RAW_DATABASE_URL}"
 else:
+    # Local dev or Koyeb (SQLite)
     DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
 
 engine = create_async_engine(DATABASE_URL)
@@ -35,7 +35,7 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
-    if not IS_RENDER:
+    if not IS_PRODUCTION:
         DB_DIR.mkdir(exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
